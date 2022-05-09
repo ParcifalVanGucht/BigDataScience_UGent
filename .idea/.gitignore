@@ -1,0 +1,16 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+week_1/iris.psv
+week_1/
+week_2/auto_train_train.psv
+week_2/auto_train.psv
+week_2/auto_test.psv
+week_2/auto_validation.psv
+week_2/
+Project/data/NISTDB4-S.csv
+Project/data/NISTDB4-F.csv
+Project/data/SFinGe_HQNoPert.csv
+Project/data/SFinGe_VQAndPert.csv
+Project/data/SFinGe_Default.csv
+Project/data/
