@@ -10,7 +10,7 @@ import missingno as mno
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
+
 
 load_path_NISTF = '/Users/parcifalvangucht/PycharmProjects/BDS_data/NISTDB4-F.csv'
 load_path_NISTS = '/Users/parcifalvangucht/PycharmProjects/BDS_data/NISTDB4-S.csv'
@@ -66,20 +66,22 @@ print('missing value rate after deletion of missing', missing_rate_mod)
 
 ## Testing SimpleImputation Strategies with logistic regression: all .88, except
 
-results = list()
-strategies = ['mean', 'median', 'most_frequent', 'constant']
+#results = list()
+#strategies = ['mean', 'median', 'most_frequent', 'constant']
+
+##SCALE DATA
 scaler = StandardScaler()
 mod_df = scaler.fit_transform(mod_df)
-for s in strategies:
+#for s in strategies:
     # create the modeling pipeline
-    pipeline = Pipeline(steps=[('i', SimpleImputer(strategy=s)), ('m', LogisticRegression(multi_class='multinomial', max_iter=500, random_state=random_state))])
+    # pipeline = Pipeline(steps=[('i', SimpleImputer(strategy=s)), ('m', LogisticRegression(multi_class='multinomial', max_iter=500, random_state=random_state))])
     # evaluate the model
-    strat_kfolds = StratifiedKFold(n_splits=10, shuffle=True, random_state=random_state)
+    # strat_kfolds = StratifiedKFold(n_splits=10, shuffle=True, random_state=random_state)
     # evaluate the model and collect the scores
-    n_scores = cross_val_score(pipeline, mod_df, y_train.values.ravel(), scoring='balanced_accuracy', cv=strat_kfolds, n_jobs=-1)
+    # n_scores = cross_val_score(pipeline, mod_df, y_train.values.ravel(), scoring='balanced_accuracy', cv=strat_kfolds, n_jobs=-1)
     # store results
-    results.append(n_scores)
-    print(s, np.mean(n_scores), np.std(n_scores))
+    # results.append(n_scores)
+    # print(s, np.mean(n_scores), np.std(n_scores))
 
 ## Median is chosen as SimpleImputation strategy
 
@@ -87,34 +89,9 @@ for s in strategies:
 #imputer = IterativeImputer(random_state=random_state, verbose=2, max_iter=20)
 #imputed = imputer.fit_transform(mod_df)
 
-
-# DIMENSIONALITY REDUCTION
-## PCA
+## IMPUTE DATA
 imputer = SimpleImputer(strategy='median')
 mod_df = imputer.fit_transform(mod_df)
 
-### Decide the number of PCA components based on the retained information
-
-pca = PCA(random_state=random_state)
-pca.fit(mod_df)
-explained_variance = np.cumsum(pca.explained_variance_ratio_)
-plt.vlines(x=404, ymax=1, ymin=0, colors="r", linestyles="--")
-plt.hlines(y=0.95, xmax=404, xmin=0, colors="g", linestyles="--")
-plt.plot(explained_variance)
-
-### take 404 components that explain 95% of the variance and check correlation matrix of retained components
-pca_80 = PCA(random_state=random_state, n_components=0.80)
-pca_90 = PCA(random_state=random_state, n_components=0.90)
-pca_95 = PCA(random_state=random_state, n_components=0.95)
-pca_99 = PCA(random_state=random_state, n_components=0.99)
-
-df_pca80 = pca_80.fit_transform(mod_df)
-df_pca90 = pca_90.fit_transform(mod_df)
-df_pca95 = pca_95.fit_transform(mod_df)
-df_pca99 = pca_99.fit_transform(mod_df)
-corr_mat_pca = np.corrcoef(df_pca95.transpose())
-plt.figure(figsize=[15,8])
-sns.heatmap(corr_mat_pca)
-plt.show()
-
-### Principal components are unrelated
+missing_rate_mod = np.count_nonzero(np.isnan(mod_df))/np.prod(mod_df.shape)
+print('missing value rate after amputation', missing_rate_mod)
