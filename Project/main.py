@@ -10,6 +10,7 @@ import missingno as mno
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
 load_path_NISTF = '/Users/parcifalvangucht/PycharmProjects/BDS_data/NISTDB4-F.csv'
 load_path_NISTS = '/Users/parcifalvangucht/PycharmProjects/BDS_data/NISTDB4-S.csv'
@@ -27,7 +28,7 @@ inputs = raw_data.iloc[:,:-1]
 X_train, X_test, y_train, y_test = train_test_split(inputs, labels, test_size=0.2, random_state=random_state)
 
 #Check counts of classes (balance)
-sns.countplot(data=y_train, x=2014)
+class_countsplot = sns.countplot(data=y_train, x=2014)
 
 #First handle missing data
 ## Check which data is actually missing and how much data is missing
@@ -82,29 +83,31 @@ for s in strategies:
 
 ## Median is chosen as SimpleImputation strategy
 
-## Imputing missing data through multiple imputation
+## Imputing missing data through multiple imputation: NOT POSSIBLE ==> LARGE COMPUTING TIME
 #imputer = IterativeImputer(random_state=random_state, verbose=2, max_iter=20)
 #imputed = imputer.fit_transform(mod_df)
 
 
+# DIMENSIONALITY REDUCTION
+## PCA
+imputer = SimpleImputer(strategy='median')
+mod_df = imputer.fit_transform(mod_df)
 
-#high_corr_var = np.where(corr_mat>0.8)
-#high_corr_var = [(corr_mat.columns[row],corr_mat.columns[column]) for row,column in zip(*high_corr_var) if row!=column and row<column]
+### Decide the number of PCA components based on the retained information
 
+pca = PCA(random_state=random_state)
+pca.fit(mod_df)
+explained_variance = np.cumsum(pca.explained_variance_ratio_)
+plt.vlines(x=404, ymax=1, ymin=0, colors="r", linestyles="--")
+plt.hlines(y=0.95, xmax=404, xmin=0, colors="g", linestyles="--")
+plt.plot(explained_variance)
 
-#sns.heatmap(corr_mat, annot=False)
-#plt.show()
-#correlation_pairs = corr_mat.abs().unstack().sort_values(ascending=False)
+### take 404 components that explain 95% of the variance and check correlation matrix of retained components
+pca = PCA(random_state=random_state, n_components=404)
+df_pca = pca.fit_transform(mod_df)
+corr_mat_pca = np.corrcoef(df_pca.transpose())
+plt.figure(figsize=[15,8])
+sns.heatmap(corr_mat_pca)
+plt.show()
 
-#listwise deletion
-#X_train.dropna()
-
-
-#k-fold cross-validation on train set
-kf = KFold(n_splits=10,shuffle=True, random_state=random_state) # Define the split - into 2 folds
-kf.get_n_splits(X_train) # returns the number of splitting iterations in the cross-validator
-print(kf)
-
-
-for train_index, test_index in kf.split(X_train):
- print('TRAIN:', train_index, 'TEST:', test_index)
+### Principal components are unrelated
