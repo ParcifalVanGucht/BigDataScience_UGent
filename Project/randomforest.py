@@ -7,6 +7,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.metrics import make_scorer, matthews_corrcoef
 import numpy as np
 import Project.dimred as dimred
+from Project.classif_automation import classif_automation
 
 y_train = main.y_train
 random_state = main.random_state
@@ -37,33 +38,13 @@ df_pca90 = dimred.df_pca90
 df_pca95 = dimred.df_pca95
 df_pca80 = dimred.df_pca80
 datasets = [df_pca80, df_pca90, df_pca95, df_pca99]
-scoring_methods = ['accuracy', 'balanced_accuracy', 'precision_weighted', 'recall_weighted', 'f1_weighted', 'roc_auc_ovo_weighted', make_scorer(matthews_corrcoef)]
-for dataset in datasets:
-    for scoring_m in scoring_methods:
-        # create the modeling pipeline
-        pipeline = Pipeline(steps=[('m', RandomForestClassifier(random_state=random_state, n_jobs=-1))])
-        # evaluate the model
-        strat_kfolds = StratifiedKFold(n_splits=10, shuffle=True, random_state=random_state)
-        # evaluate the model and collect the scores
-        n_scores = cross_val_score(pipeline, dataset, y_train.values.ravel(), scoring=scoring_m, cv=strat_kfolds, n_jobs=-1)
-        # store results
-        results.append(n_scores)
-        print(len(dataset[0]),scoring_m, np.mean(n_scores), np.std(n_scores))
+classif_automation(datasets=datasets, classifier=RandomForestClassifier(random_state=random_state, n_jobs=-1),
+                   random_state= random_state, y_train=y_train)
 
 
 ## lda_df
 results = list()
 lda_df = dimred.lda_df
-
-scoring_methods = ['accuracy', 'balanced_accuracy', 'precision_weighted', 'recall_weighted', 'f1_weighted', 'roc_auc_ovo_weighted', make_scorer(matthews_corrcoef)]
-for scoring_m in scoring_methods:
-    # create the modeling pipeline
-    pipeline = Pipeline(steps=[('m', RandomForestClassifier(random_state=random_state, n_jobs=-1))])
-    # evaluate the model
-    strat_kfolds = StratifiedKFold(n_splits=10, shuffle=True, random_state=random_state)
-    # evaluate the model and collect the scores
-    n_scores = cross_val_score(pipeline, lda_df, y_train.values.ravel(), scoring=scoring_m, cv=strat_kfolds, n_jobs=-1)
-    # store results
-    results.append(n_scores)
-    print('lda',scoring_m, np.mean(n_scores), np.std(n_scores))
-
+datasets = [lda_df]
+classif_automation(datasets=datasets, classifier=RandomForestClassifier(random_state=random_state, n_jobs=-1),
+                   random_state= random_state, y_train=y_train)

@@ -10,6 +10,7 @@ import missingno as mno
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
+from Project.helpers import detect_outlying_inds_by_iqr
 
 
 load_path_NISTF = '/Users/parcifalvangucht/PycharmProjects/BDS_data/NISTDB4-F.csv'
@@ -69,6 +70,7 @@ print('missing value rate after deletion of missing', missing_rate_mod)
 #results = list()
 #strategies = ['mean', 'median', 'most_frequent', 'constant']
 
+
 ##SCALE DATA
 scaler = StandardScaler()
 mod_df = scaler.fit_transform(mod_df)
@@ -95,3 +97,60 @@ mod_df = imputer.fit_transform(mod_df)
 
 missing_rate_mod = np.count_nonzero(np.isnan(mod_df))/np.prod(mod_df.shape)
 print('missing value rate after amputation', missing_rate_mod)
+
+## Outlier detection: first IQR
+
+results_iqr_outliers = {}
+for col in pd.DataFrame(mod_df):
+    outliers_col = detect_outlying_inds_by_iqr(pd.DataFrame(mod_df)[col])
+    results_iqr_outliers[col] = outliers_col
+
+def mahalanobis(x=None, data=None, cov=None):
+    x_mu = x - np.mean(data)
+    if not cov:
+        cov = np.cov(data.values.T)
+    inv_covmat = np.linalg.inv(cov)
+    left = np.dot(x_mu, inv_covmat)
+    mahal = np.dot(left, x_mu.T)
+    return mahal.diagonal()
+
+df_mah = pd.DataFrame()
+input_mah = pd.DataFrame(mod_df)
+#create new column in dataframe that contains Mahalanobis distance for each row
+from scipy.stats import chi2
+df_mah['mahalanobis'] = mahalanobis(x=input_mah, data=input_mah[1:2014])
+df_mah['p_value'] = 1 - chi2.cdf(df_mah['mahalanobis'], 2)
+
+# Extreme values with a significance level of 0.01
+df_mah.loc[df_mah.p_value < 0.01].head(10)
+import numpy as np
+
+def calculate_mahalanobis_distance(y=None, data=None, cov=None):
+    y_mu = y - np.mean(data, axis = 0)
+    if not cov:
+        cov = np.cov(data.values.T)
+    inv_covmat = np.linalg.inv(cov)
+    left = np.dot(y_mu, inv_covmat)
+    mahal = np.dot(left, y_mu.T)
+    return mahal.diagonal()
+
+def calculate_mahalanobis_distance_iteratevely(y_train, X_train):
+    mahal_distances = []
+    mahal_distances = np.empty(shape=[len(y_train)])
+    step = 1000
+    for left_bound in range(0, len(y_train), step):
+        print(f"Mahal Distance {100 * round(left_bound / len(y_train), 2)}% done")
+        right_bound = len(y_train) + 1 if left_bound + step > len(y_train) else left_bound + step
+        # put the mahal_distances in the numpy array
+        mahal_distances[left_bound:right_bound] = calculate_mahalanobis_distance(y=X_train[left_bound:right_bound],
+                                                                                 data=X_train)
+    return mahal_distances
+
+df_mah_iter = pd.DataFrame()
+df_mah_iter['mahalanobis'] = calculate_mahalanobis_distance_iteratevely(input_mah, input_mah)
+df_mah_iter['p_value'] = 1 - chi2.cdf(df_mah_iter['mahalanobis'], 2)
+
+# Extreme values with a significance level of 0.01
+df_mah_iter.loc[df_mah_iter.p_value < 0.01].head(10)
+
+

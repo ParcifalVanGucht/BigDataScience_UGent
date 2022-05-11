@@ -6,6 +6,7 @@ from sklearn.impute import SimpleImputer
 import numpy as np
 import Project.main as main
 import Project.dimred as dimred
+from Project.classif_automation import classif_automation
 
 random_state = main.random_state
 y_train= main.y_train
@@ -64,3 +65,6 @@ for n in neighbors:
     # store results
     results.append(n_scores)
     print('lda',len(lda_df[0]), n, np.mean(n_scores), np.std(n_scores))
+
+
+
