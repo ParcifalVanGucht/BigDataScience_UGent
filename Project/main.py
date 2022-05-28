@@ -18,7 +18,8 @@ load_path_NISTS = '/Users/parcifalvangucht/PycharmProjects/BDS_data/NISTDB4-S.cs
 load_path_SFING_Default = '/Users/parcifalvangucht/PycharmProjects/BDS_data/SFinGe_Default.csv'
 load_path_SFING_HQ = '/Users/parcifalvangucht/PycharmProjects/BDS_data/SFinGe_HQNoPert.csv'
 load_path_SFING_VQ = '/Users/parcifalvangucht/PycharmProjects/BDS_data/SFinGe_VQAndPert.csv'
-raw_data = pd.read_csv(load_path_NISTF, header=None)
+data_chosen = load_path_SFING_VQ
+raw_data = pd.read_csv(data_chosen, header=None)
 
 random_state= 1
 
@@ -29,7 +30,8 @@ inputs = raw_data.iloc[:,:-1]
 X_train, X_test, y_train, y_test = train_test_split(inputs, labels, test_size=0.2, random_state=random_state)
 
 #Check counts of classes (balance)
-class_countsplot = sns.countplot(data=y_train, x=2014)
+number_inst = len(y_train)
+class_subplot=sns.countplot(data=y_train, x=y_train.values.ravel())
 
 #First handle missing data
 ## Check which data is actually missing and how much data is missing
@@ -54,14 +56,60 @@ to_drop_missing = missing_value_df[(missing_value_df['percent_missing'] > 40)]
 to_drop_both = to_drop_missing[to_drop_missing['column_name'].isin(to_drop_corr)]
 ### No high correlating variables that also have more than 40% missing
 
-## Columns with more than 50% missing data will be deleted
+## Columns with more than 40% missing data will be deleted
 perc = 40.0
 min_count = int(((100-perc)/100)*X_train.shape[0] + 1)
-mod_df = X_train.dropna( axis=1,
+mod_df = X_train.dropna(axis=1,
                 thresh=min_count)
+min_count_test = int(((100-perc)/100)*X_test.shape[0] + 1)
+X_test = X_test[mod_df.columns]
 
 missing_rate_mod = np.count_nonzero(np.isnan(mod_df))/np.prod(mod_df.shape)
-print('missing value rate after deletion of missing', missing_rate_mod)
+print('missing value rate within training set after deletion of missing', missing_rate_mod)
+
+missing_rate_mod_test = np.count_nonzero(np.isnan(X_test))/np.prod(X_test.shape)
+print('missing value rate within test set after deletion of missing', missing_rate_mod_test)
+
+
+## Outlier detection training set mod_df: first IQR
+outliers_df = {}
+tmp = {}
+for col in pd.DataFrame(mod_df):
+    tmp[col]= detect_outlying_inds_by_iqr(pd.DataFrame(mod_df)[col])
+    outliers_in_col = detect_outlying_inds_by_iqr(pd.DataFrame(mod_df)[col])
+    #count times that a row is an outlier and create dict of counts
+    for row in outliers_in_col:
+        label = mod_df.index[row]
+        outliers_df[label] = outliers_df.get(label, 0) + 1
+counter =0
+ratio = 0.1
+for key, value in outliers_df.items():
+    if value > len(mod_df.columns)*ratio:
+        counter += 1
+        print(key, value/len(mod_df.columns))
+        mod_df.drop(key, axis=0, inplace=True)
+        y_train.drop(key, axis=0, inplace=True)
+print('Amount of rows that are outliers for more then', ratio, 'of the columns of the training set:',counter)
+
+##Outlier detection test set
+outliers_df = {}
+tmp = {}
+for col in pd.DataFrame(X_test):
+    tmp[col]= detect_outlying_inds_by_iqr(pd.DataFrame(X_test)[col])
+    outliers_in_col = detect_outlying_inds_by_iqr(pd.DataFrame(X_test)[col])
+    #count times that a row is an outlier and create dict of counts
+    for row in outliers_in_col:
+        label = X_test.index[row]
+        outliers_df[label] = outliers_df.get(label, 0) + 1
+counter =0
+ratio = 0.1
+for key, value in outliers_df.items():
+    if value > len(mod_df.columns)*ratio:
+        counter += 1
+        print(key, value/len(X_test.columns))
+        X_test.drop(key, axis=0, inplace=True)
+        y_test.drop(key, axis=0, inplace=True)
+print('Amount of rows that are outliers for more then', ratio, 'of the columns of the test set:',counter)
 
 ## Columns with high correlation features
 
@@ -74,6 +122,7 @@ print('missing value rate after deletion of missing', missing_rate_mod)
 ##SCALE DATA
 scaler = StandardScaler()
 mod_df = scaler.fit_transform(mod_df)
+X_test = scaler.transform(X_test)
 #for s in strategies:
     # create the modeling pipeline
     # pipeline = Pipeline(steps=[('i', SimpleImputer(strategy=s)), ('m', LogisticRegression(multi_class='multinomial', max_iter=500, random_state=random_state))])
@@ -94,17 +143,13 @@ mod_df = scaler.fit_transform(mod_df)
 ## IMPUTE DATA
 imputer = SimpleImputer(strategy='median')
 mod_df = imputer.fit_transform(mod_df)
+X_test = imputer.transform(X_test)
 
 missing_rate_mod = np.count_nonzero(np.isnan(mod_df))/np.prod(mod_df.shape)
-print('missing value rate after amputation', missing_rate_mod)
+print('missing value rate after imputation', missing_rate_mod)
 
-## Outlier detection: first IQR
 
-results_iqr_outliers = {}
-for col in pd.DataFrame(mod_df):
-    outliers_col = detect_outlying_inds_by_iqr(pd.DataFrame(mod_df)[col])
-    results_iqr_outliers[col] = outliers_col
-
+"""
 def mahalanobis(x=None, data=None, cov=None):
     x_mu = x - np.mean(data)
     if not cov:
@@ -152,5 +197,5 @@ df_mah_iter['p_value'] = 1 - chi2.cdf(df_mah_iter['mahalanobis'], 2)
 
 # Extreme values with a significance level of 0.01
 df_mah_iter.loc[df_mah_iter.p_value < 0.01].head(10)
-
+"""
 
